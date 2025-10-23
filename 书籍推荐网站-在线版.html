@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>课外阅读喜好调查 - 在线版</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  
+  <!-- 配置Tailwind自定义颜色和字体 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#4F46E5',
+            like: '#10B981',      // 喜欢 - 绿色
+            dislike: '#EF4444',   // 不喜欢 - 红色
+            unread: '#6B7280',    // 没看过 - 灰色
+            light: '#F3F4F6',
+            accent: '#F59E0B'
+          },
+          fontFamily: {
+            sans: ['Comic Sans MS', 'Marker Felt', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .book-card {
+        @apply bg-white rounded-xl shadow-md p-5 mb-4 transition-all duration-300 hover:shadow-lg;
+      }
+      .btn-like {
+        @apply bg-like/90 text-white px-5 py-2.5 rounded-lg mr-2 text-sm sm:text-base transition-all duration-300 hover:bg-like active:scale-95 border-2 border-transparent;
+      }
+      .btn-dislike {
+        @apply bg-dislike/90 text-white px-5 py-2.5 rounded-lg mr-2 text-sm sm:text-base transition-all duration-300 hover:bg-dislike active:scale-95 border-2 border-transparent;
+      }
+      .btn-unread {
+        @apply bg-unread/90 text-white px-5 py-2.5 rounded-lg text-sm sm:text-base transition-all duration-300 hover:bg-unread active:scale-95 border-2 border-transparent;
+      }
+      /* 增强的选中状态样式 */
+      .selected {
+        @apply border-4 border-primary scale-105 shadow-md;
+      }
+      .section-transition {
+        @apply transition-all duration-500 ease-in-out transform;
+      }
+      .slide-in {
+        @apply translate-x-0 opacity-100;
+      }
+      .slide-out {
+        @apply -translate-x-full opacity-0;
+      }
+      .slide-next {
+        @apply translate-x-full opacity-0;
+      }
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-purple-50 min-h-screen overflow-x-hidden">
+  <div class="container mx-auto px-4 py-8 max-w-5xl relative">
+    <!-- 标题区域 -->
+    <header class="text-center mb-8">
+      <h1 class="text-[clamp(1.8rem,5vw,3rem)] font-bold text-primary mb-2">
+        <i class="fa fa-book mr-3"></i>课外阅读喜好调查
+      </h1>
+      <p class="text-unread text-lg">五年级学生阅读喜好相似度分析</p>
+      <div class="mt-4 p-4 bg-blue-100 rounded-lg">
+        <p class="text-sm text-blue-800">
+          <i class="fa fa-info-circle mr-2"></i>
+          此版本支持多用户在线共享数据，所有同学的选择都会实时同步！
+        </p>
+      </div>
+    </header>
+
+    <!-- 学号选择区域 -->
+    <div id="student-id-section" class="section-transition absolute w-full left-0 slide-in">
+      <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <h2 class="text-xl font-bold mb-4 text-center">请选择你的学号</h2>
+        <div class="grid grid-cols-5 sm:grid-cols-9 gap-2 mb-6">
+          <!-- 学号按钮将通过JS动态生成 -->
+        </div>
+        <p id="id-error" class="text-red-500 text-center mt-4 mb-4 hidden">请先选择你的学号</p>
+        <div class="text-center">
+          <button id="confirm-id-btn" class="bg-primary text-white px-6 py-3 rounded-lg text-lg font-bold transition-all duration-300 hover:bg-primary/80 active:scale-95">
+            <i class="fa fa-check mr-2"></i>确认学号
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 书籍评价区域 -->
+    <div id="books-section" class="section-transition absolute w-full left-0 slide-next">
+      <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <h2 class="text-xl font-bold mb-6 text-center">请选择你对以下书籍的喜好</h2>
+        <div id="books-container">
+          <!-- 书籍卡片将通过JS动态生成 -->
+        </div>
+        <div class="text-center mt-8">
+          <button id="submit-btn" class="bg-primary text-white px-8 py-3 rounded-lg text-lg font-bold transition-all duration-300 hover:bg-primary/80 active:scale-95">
+            <i class="fa fa-paper-plane mr-2"></i>提交我的选择
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 结果展示区域 -->
+    <div id="results-section" class="section-transition absolute w-full left-0 slide-next">
+      <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <h2 class="text-xl font-bold mb-4 text-center">与你阅读喜好最相似的同学</h2>
+        <div id="similar-students" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- 相似同学将通过JS动态生成 -->
+          <div class="bg-light rounded-lg p-4 text-center">加载中...</div>
+          <div class="bg-light rounded-lg p-4 text-center">加载中...</div>
+          <div class="bg-light rounded-lg p-4 text-center">加载中...</div>
+        </div>
+        <p class="text-center text-sm text-unread mt-4">
+          <i class="fa fa-refresh mr-1"></i>每5秒自动刷新
+        </p>
+      </div>
+      
+      <div class="text-center">
+        <button id="restart-btn" class="bg-accent text-white px-6 py-2 rounded-lg transition-all duration-300 hover:bg-accent/80 active:scale-95">
+          <i class="fa fa-repeat mr-1"></i>重新选择
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 更新为指定的10本适合小学五年级学生的课外读物
+    const books = [
+      { id: 1, name: "西游记" },
+      { id: 2, name: "假如历史是一群喵" },
+      { id: 3, name: "米小圈上学记" },
+      { id: 4, name: "安徒生童话" },
+      { id: 5, name: "小英雄雨来" },
+      { id: 6, name: "森林报" },
+      { id: 7, name: "昆虫记" },
+      { id: 8, name: "故宫里的大怪兽" },
+      { id: 9, name: "哈利・波特" },
+      { id: 10, name: "趣味数学" }
+    ];
+
+    // 全局变量
+    let selectedStudentId = null;
+    let studentChoices = {}; // 存储当前学生的选择: 1=喜欢, 0=不喜欢, -1=没看过
+    let allStudentsData = {}; // 存储所有学生的数据
+    let refreshInterval; // 用于存储刷新定时器
+    
+    // 使用简单的在线存储服务
+    const STORAGE_URL = 'https://api.jsonbin.io/v3/b';
+    const BIN_ID = '68f9bf31ae596e708f25a01a'; // 您的BIN ID
+    const API_KEY = '$2a$10$3tw5mZrH6938m7nScjWW1ujoy/YsybzR6qS.y69FEePfvvZ42x6/O'; // 您的API密钥
+    
+    // 初始化页面
+    document.addEventListener('DOMContentLoaded', () => {
+      // 生成学号按钮
+      generateStudentIdButtons();
+      
+      // 加载所有学生数据
+      loadAllStudentsData();
+      
+      // 绑定事件监听器
+      document.getElementById('confirm-id-btn').addEventListener('click', goToBooksSection);
+      document.getElementById('submit-btn').addEventListener('click', goToResultsSection);
+      document.getElementById('restart-btn').addEventListener('click', restart);
+    });
+    
+    // 从在线数据库加载所有学生数据
+    async function loadAllStudentsData() {
+      try {
+        const response = await fetch(`${STORAGE_URL}/${BIN_ID}/latest`, {
+          headers: {
+            'X-Master-Key': API_KEY,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          allStudentsData = data.record || {};
+          console.log('成功加载在线数据');
+        } else {
+          console.log('使用本地存储作为备用方案');
+          allStudentsData = JSON.parse(localStorage.getItem('readingPreferences')) || {};
+        }
+      } catch (error) {
+        console.log('网络错误，使用本地存储作为备用方案');
+        allStudentsData = JSON.parse(localStorage.getItem('readingPreferences')) || {};
+      }
+    }
+    
+    // 保存数据到在线数据库
+    async function saveAllStudentsData() {
+      try {
+        const response = await fetch(`${STORAGE_URL}/${BIN_ID}`, {
+          method: 'PUT',
+          headers: {
+            'X-Master-Key': API_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(allStudentsData)
+        });
+        
+        if (response.ok) {
+          console.log('数据已保存到在线数据库');
+          return true;
+        } else {
+          console.log('保存到在线数据库失败，使用本地存储');
+          localStorage.setItem('readingPreferences', JSON.stringify(allStudentsData));
+          return false;
+        }
+      } catch (error) {
+        console.log('网络错误，使用本地存储');
+        localStorage.setItem('readingPreferences', JSON.stringify(allStudentsData));
+        return false;
+      }
+    }
+    
+    // 生成学号按钮 (1-45)
+    function generateStudentIdButtons() {
+      const container = document.querySelector('#student-id-section .grid');
+      container.innerHTML = '';
+      
+      for (let i = 1; i <= 45; i++) {
+        const button = document.createElement('button');
+        button.className = 'bg-white border-2 border-primary text-primary hover:bg-primary/10 rounded-lg py-2 transition-all duration-300';
+        button.textContent = i;
+        button.addEventListener('click', () => {
+          // 移除其他按钮的选中状态
+          document.querySelectorAll('#student-id-section button').forEach(btn => {
+            btn.classList.remove('selected', 'bg-primary', 'text-white');
+            btn.classList.add('text-primary', 'bg-white');
+          });
+          
+          // 设置当前选中状态
+          selectedStudentId = i;
+          button.classList.add('selected', 'bg-primary', 'text-white');
+          button.classList.remove('text-primary', 'bg-white');
+          
+          // 隐藏错误提示
+          document.getElementById('id-error').classList.add('hidden');
+        });
+        
+        container.appendChild(button);
+      }
+    }
+    
+    // 前往书籍评价区域
+    function goToBooksSection() {
+      // 验证是否选择了学号
+      if (!selectedStudentId) {
+        document.getElementById('id-error').classList.remove('hidden');
+        return;
+      }
+      
+      // 切换界面动画
+      document.getElementById('student-id-section').classList.remove('slide-in');
+      document.getElementById('student-id-section').classList.add('slide-out');
+      
+      setTimeout(() => {
+        // 初始化书籍评价区域
+        initBooksSection();
+        document.getElementById('books-section').classList.remove('slide-next');
+        document.getElementById('books-section').classList.add('slide-in');
+      }, 300);
+    }
+    
+    // 初始化书籍评价区域
+    function initBooksSection() {
+      const container = document.getElementById('books-container');
+      container.innerHTML = '';
+      studentChoices = {}; // 重置当前学生选择
+      
+      // 如果该学生已有记录，加载已有选择
+      if (allStudentsData[selectedStudentId]) {
+        studentChoices = { ...allStudentsData[selectedStudentId] };
+      }
+      
+      // 随机排序书籍
+      const shuffledBooks = [...books].sort(() => Math.random() - 0.5);
+      
+      // 生成书籍卡片
+      shuffledBooks.forEach(book => {
+        const bookCard = document.createElement('div');
+        bookCard.className = 'book-card';
+        bookCard.innerHTML = `
+          <h3 class="text-lg font-semibold mb-4 flex items-center">
+            <i class="fa fa-bookmark text-primary mr-2"></i>
+            ${book.name}
+          </h3>
+          <div class="flex flex-wrap gap-3">
+            <button class="like-btn btn-like ${studentChoices[book.id] === 1 ? 'selected' : ''}" data-book-id="${book.id}">
+              <i class="fa fa-thumbs-up mr-1.5"></i>喜欢
+            </button>
+            <button class="dislike-btn btn-dislike ${studentChoices[book.id] === 0 ? 'selected' : ''}" data-book-id="${book.id}">
+              <i class="fa fa-thumbs-down mr-1.5"></i>不喜欢
+            </button>
+            <button class="unread-btn btn-unread ${studentChoices[book.id] === -1 ? 'selected' : ''}" data-book-id="${book.id}">
+              <i class="fa fa-question-circle mr-1.5"></i>没看过
+            </button>
+          </div>
+        `;
+        
+        container.appendChild(bookCard);
+        
+        // 绑定喜欢按钮事件
+        bookCard.querySelector('.like-btn').addEventListener('click', (e) => {
+          const bookId = parseInt(e.currentTarget.dataset.bookId);
+          studentChoices[bookId] = 1;
+          e.currentTarget.classList.add('selected');
+          bookCard.querySelector('.dislike-btn').classList.remove('selected');
+          bookCard.querySelector('.unread-btn').classList.remove('selected');
+        });
+        
+        // 绑定不喜欢按钮事件
+        bookCard.querySelector('.dislike-btn').addEventListener('click', (e) => {
+          const bookId = parseInt(e.currentTarget.dataset.bookId);
+          studentChoices[bookId] = 0;
+          e.currentTarget.classList.add('selected');
+          bookCard.querySelector('.like-btn').classList.remove('selected');
+          bookCard.querySelector('.unread-btn').classList.remove('selected');
+        });
+        
+        // 绑定没看过按钮事件
+        bookCard.querySelector('.unread-btn').addEventListener('click', (e) => {
+          const bookId = parseInt(e.currentTarget.dataset.bookId);
+          studentChoices[bookId] = -1;
+          e.currentTarget.classList.add('selected');
+          bookCard.querySelector('.like-btn').classList.remove('selected');
+          bookCard.querySelector('.dislike-btn').classList.remove('selected');
+        });
+      });
+    }
+    
+    // 前往结果展示区域
+    async function goToResultsSection() {
+      // 验证是否所有书籍都已评价（包括没看过）
+      const allRated = books.every(book => studentChoices[book.id] !== undefined);
+      if (!allRated) {
+        alert('请为每一本书都选择喜欢、不喜欢或没看过哦！');
+        return;
+      }
+      
+      // 保存数据
+      const filteredChoices = {...studentChoices};
+      delete filteredChoices.timestamp;
+      allStudentsData[selectedStudentId] = { ...filteredChoices, timestamp: new Date().getTime() };
+      
+      // 保存到在线数据库
+      await saveAllStudentsData();
+      
+      // 切换界面动画
+      document.getElementById('books-section').classList.remove('slide-in');
+      document.getElementById('books-section').classList.add('slide-out');
+      
+      setTimeout(() => {
+        // 显示结果区域
+        document.getElementById('results-section').classList.remove('slide-next');
+        document.getElementById('results-section').classList.add('slide-in');
+        
+        // 计算并显示相似学生
+        updateSimilarStudents();
+        
+        // 设置定时刷新
+        refreshInterval = setInterval(updateSimilarStudents, 5000);
+      }, 300);
+    }
+    
+    // 计算并更新相似学生
+    async function updateSimilarStudents() {
+      // 重新获取最新数据
+      await loadAllStudentsData();
+      
+      // 获取其他学生数据
+      const otherStudents = Object.keys(allStudentsData)
+        .filter(id => parseInt(id) !== selectedStudentId)
+        .map(id => ({ id: parseInt(id), choices: allStudentsData[id] }));
+      
+      if (otherStudents.length === 0) {
+        const container = document.getElementById('similar-students');
+        container.innerHTML = `
+          <div class="bg-light rounded-lg p-4 text-center">暂无其他同学数据</div>
+          <div class="bg-light rounded-lg p-4 text-center">暂无其他同学数据</div>
+          <div class="bg-light rounded-lg p-4 text-center">暂无其他同学数据</div>
+        `;
+        return;
+      }
+      
+      // 计算喜好相似度
+      const similarities = otherStudents.map(student => {
+        let sameCount = 0;    // 喜好相同的书籍数量
+        let bothReadCount = 0; // 双方都看过的书籍数量
+        
+        // 比较每本书的选择
+        books.forEach(book => {
+          const myChoice = studentChoices[book.id];
+          const theirChoice = student.choices[book.id];
+          
+          // 只考虑双方都明确表示喜欢或不喜欢的书籍
+          if (myChoice !== -1 && theirChoice !== -1) {
+            bothReadCount++;
+            if (myChoice === theirChoice) {
+              sameCount++;
+            }
+          }
+        });
+        
+        // 计算相似度百分比
+        const similarity = bothReadCount > 0 ? Math.round((sameCount / bothReadCount) * 100) : 0;
+        return {
+          studentId: student.id,
+          similarity: similarity,
+          commonBooks: bothReadCount
+        };
+      });
+      
+      // 按相似度排序
+      const topSimilar = similarities
+        .sort((a, b) => {
+          if (b.similarity !== a.similarity) {
+            return b.similarity - a.similarity;
+          } else {
+            return b.commonBooks - a.commonBooks;
+          }
+        })
+        .slice(0, 3);
+      
+      // 显示结果
+      const container = document.getElementById('similar-students');
+      container.innerHTML = '';
+      
+      topSimilar.forEach(student => {
+        const card = document.createElement('div');
+        card.className = 'bg-light rounded-lg p-4 text-center transition-all duration-300 hover:shadow-md';
+        card.innerHTML = `
+          <div class="text-2xl font-bold text-primary mb-1">${student.studentId}号同学</div>
+          <div class="text-sm text-unread mb-1">喜好相似度</div>
+          <div class="text-xl font-bold ${getSimilarityColor(student.similarity)}">
+            ${student.similarity}%
+          </div>
+          ${student.commonBooks > 0 ? `<div class="text-xs text-unread mt-2">共同看过 ${student.commonBooks} 本书</div>` : ''}
+        `;
+        container.appendChild(card);
+      });
+      
+      // 补充空卡片
+      const remaining = 3 - topSimilar.length;
+      for (let i = 0; i < remaining; i++) {
+        const card = document.createElement('div');
+        card.className = 'bg-light rounded-lg p-4 text-center';
+        card.textContent = '暂无数据';
+        container.appendChild(card);
+      }
+    }
+    
+    // 根据相似度获取颜色
+    function getSimilarityColor(percentage) {
+      if (percentage >= 80) return 'text-green-600';
+      if (percentage >= 60) return 'text-green-500';
+      if (percentage >= 40) return 'text-yellow-500';
+      if (percentage >= 20) return 'text-orange-500';
+      return 'text-red-500';
+    }
+    
+    // 重新开始
+    function restart() {
+      // 清除定时器
+      clearInterval(refreshInterval);
+      
+      // 重置变量
+      selectedStudentId = null;
+      
+      // 隐藏结果区域
+      document.getElementById('results-section').classList.remove('slide-in');
+      document.getElementById('results-section').classList.add('slide-next');
+      
+      // 重置书籍区域
+      document.getElementById('books-section').classList.remove('slide-in', 'slide-out');
+      document.getElementById('books-section').classList.add('slide-next');
+      
+      // 显示学号选择区域
+      document.getElementById('student-id-section').classList.remove('slide-out');
+      document.getElementById('student-id-section').classList.add('slide-in');
+      
+      // 重置学号选择
+      document.querySelectorAll('#student-id-section button').forEach(btn => {
+        btn.classList.remove('selected', 'bg-primary', 'text-white');
+        btn.classList.add('text-primary', 'bg-white');
+      });
+    }
+  </script>
+</body>
+</html>
