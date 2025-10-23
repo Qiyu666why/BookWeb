@@ -356,19 +356,21 @@
       allStudentsData[selectedStudentId] = { ...filteredChoices, timestamp: new Date().getTime() };
       
       // 保存到在线数据库
-      await saveAllStudentsData();
+      console.log('正在保存数据...');
+      const saveSuccess = await saveAllStudentsData();
+      console.log('保存结果:', saveSuccess);
       
       // 切换界面动画
       document.getElementById('books-section').classList.remove('slide-in');
       document.getElementById('books-section').classList.add('slide-out');
       
-      setTimeout(() => {
+      setTimeout(async () => {
         // 显示结果区域
         document.getElementById('results-section').classList.remove('slide-next');
         document.getElementById('results-section').classList.add('slide-in');
         
         // 计算并显示相似学生
-        updateSimilarStudents();
+        await updateSimilarStudents();
         
         // 设置定时刷新
         refreshInterval = setInterval(updateSimilarStudents, 5000);
@@ -377,88 +379,101 @@
     
     // 计算并更新相似学生
     async function updateSimilarStudents() {
-      // 重新获取最新数据
-      await loadAllStudentsData();
-      
-      // 获取其他学生数据
-      const otherStudents = Object.keys(allStudentsData)
-        .filter(id => parseInt(id) !== selectedStudentId)
-        .map(id => ({ id: parseInt(id), choices: allStudentsData[id] }));
-      
-      if (otherStudents.length === 0) {
-        const container = document.getElementById('similar-students');
-        container.innerHTML = `
-          <div class="bg-light rounded-lg p-4 text-center">暂无其他同学数据</div>
-          <div class="bg-light rounded-lg p-4 text-center">暂无其他同学数据</div>
-          <div class="bg-light rounded-lg p-4 text-center">暂无其他同学数据</div>
-        `;
-        return;
-      }
-      
-      // 计算喜好相似度
-      const similarities = otherStudents.map(student => {
-        let sameCount = 0;    // 喜好相同的书籍数量
-        let bothReadCount = 0; // 双方都看过的书籍数量
+      try {
+        // 重新获取最新数据
+        await loadAllStudentsData();
+        console.log('当前所有学生数据:', allStudentsData);
         
-        // 比较每本书的选择
-        books.forEach(book => {
-          const myChoice = studentChoices[book.id];
-          const theirChoice = student.choices[book.id];
+        // 获取其他学生数据
+        const otherStudents = Object.keys(allStudentsData)
+          .filter(id => parseInt(id) !== selectedStudentId && allStudentsData[id])
+          .map(id => ({ id: parseInt(id), choices: allStudentsData[id] }));
+        
+        console.log('其他学生数据:', otherStudents);
+        
+        if (otherStudents.length === 0) {
+          const container = document.getElementById('similar-students');
+          container.innerHTML = `
+            <div class="bg-light rounded-lg p-4 text-center">暂无其他同学数据</div>
+            <div class="bg-light rounded-lg p-4 text-center">暂无其他同学数据</div>
+            <div class="bg-light rounded-lg p-4 text-center">暂无其他同学数据</div>
+          `;
+          return;
+        }
+        
+        // 计算喜好相似度
+        const similarities = otherStudents.map(student => {
+          let sameCount = 0;    // 喜好相同的书籍数量
+          let bothReadCount = 0; // 双方都看过的书籍数量
           
-          // 只考虑双方都明确表示喜欢或不喜欢的书籍
-          if (myChoice !== -1 && theirChoice !== -1) {
-            bothReadCount++;
-            if (myChoice === theirChoice) {
-              sameCount++;
+          // 比较每本书的选择
+          books.forEach(book => {
+            const myChoice = studentChoices[book.id];
+            const theirChoice = student.choices[book.id];
+            
+            // 只考虑双方都明确表示喜欢或不喜欢的书籍
+            if (myChoice !== -1 && theirChoice !== -1) {
+              bothReadCount++;
+              if (myChoice === theirChoice) {
+                sameCount++;
+              }
             }
-          }
+          });
+          
+          // 计算相似度百分比
+          const similarity = bothReadCount > 0 ? Math.round((sameCount / bothReadCount) * 100) : 0;
+          return {
+            studentId: student.id,
+            similarity: similarity,
+            commonBooks: bothReadCount
+          };
         });
         
-        // 计算相似度百分比
-        const similarity = bothReadCount > 0 ? Math.round((sameCount / bothReadCount) * 100) : 0;
-        return {
-          studentId: student.id,
-          similarity: similarity,
-          commonBooks: bothReadCount
-        };
-      });
-      
-      // 按相似度排序
-      const topSimilar = similarities
-        .sort((a, b) => {
-          if (b.similarity !== a.similarity) {
-            return b.similarity - a.similarity;
-          } else {
-            return b.commonBooks - a.commonBooks;
-          }
-        })
-        .slice(0, 3);
-      
-      // 显示结果
-      const container = document.getElementById('similar-students');
-      container.innerHTML = '';
-      
-      topSimilar.forEach(student => {
-        const card = document.createElement('div');
-        card.className = 'bg-light rounded-lg p-4 text-center transition-all duration-300 hover:shadow-md';
-        card.innerHTML = `
-          <div class="text-2xl font-bold text-primary mb-1">${student.studentId}号同学</div>
-          <div class="text-sm text-unread mb-1">喜好相似度</div>
-          <div class="text-xl font-bold ${getSimilarityColor(student.similarity)}">
-            ${student.similarity}%
-          </div>
-          ${student.commonBooks > 0 ? `<div class="text-xs text-unread mt-2">共同看过 ${student.commonBooks} 本书</div>` : ''}
+        // 按相似度排序
+        const topSimilar = similarities
+          .sort((a, b) => {
+            if (b.similarity !== a.similarity) {
+              return b.similarity - a.similarity;
+            } else {
+              return b.commonBooks - a.commonBooks;
+            }
+          })
+          .slice(0, 3);
+        
+        // 显示结果
+        const container = document.getElementById('similar-students');
+        container.innerHTML = '';
+        
+        topSimilar.forEach(student => {
+          const card = document.createElement('div');
+          card.className = 'bg-light rounded-lg p-4 text-center transition-all duration-300 hover:shadow-md';
+          card.innerHTML = `
+            <div class="text-2xl font-bold text-primary mb-1">${student.studentId}号同学</div>
+            <div class="text-sm text-unread mb-1">喜好相似度</div>
+            <div class="text-xl font-bold ${getSimilarityColor(student.similarity)}">
+              ${student.similarity}%
+            </div>
+            ${student.commonBooks > 0 ? `<div class="text-xs text-unread mt-2">共同看过 ${student.commonBooks} 本书</div>` : ''}
+          `;
+          container.appendChild(card);
+        });
+        
+        // 补充空卡片
+        const remaining = 3 - topSimilar.length;
+        for (let i = 0; i < remaining; i++) {
+          const card = document.createElement('div');
+          card.className = 'bg-light rounded-lg p-4 text-center';
+          card.textContent = '暂无数据';
+          container.appendChild(card);
+        }
+      } catch (error) {
+        console.error('更新相似学生时出错:', error);
+        const container = document.getElementById('similar-students');
+        container.innerHTML = `
+          <div class="bg-red-100 rounded-lg p-4 text-center text-red-600">加载数据时出错</div>
+          <div class="bg-light rounded-lg p-4 text-center">请刷新页面重试</div>
+          <div class="bg-light rounded-lg p-4 text-center">暂无数据</div>
         `;
-        container.appendChild(card);
-      });
-      
-      // 补充空卡片
-      const remaining = 3 - topSimilar.length;
-      for (let i = 0; i < remaining; i++) {
-        const card = document.createElement('div');
-        card.className = 'bg-light rounded-lg p-4 text-center';
-        card.textContent = '暂无数据';
-        container.appendChild(card);
       }
     }
     
