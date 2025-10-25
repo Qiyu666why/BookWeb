@@ -16,7 +16,6 @@
             primary: '#4F46E5',
             like: '#10B981',      // 喜欢 - 绿色
             dislike: '#EF4444',   // 不喜欢 - 红色
-            unread: '#6B7280',    // 没看过 - 灰色
             light: '#F3F4F6',
             accent: '#F59E0B'
           },
@@ -41,9 +40,6 @@
       }
       .btn-dislike {
         @apply bg-dislike/90 text-white px-5 py-2.5 rounded-lg mr-2 text-sm sm:text-base transition-all duration-300 hover:bg-dislike active:scale-95 border-2 border-transparent;
-      }
-      .btn-unread {
-        @apply bg-unread/90 text-white px-5 py-2.5 rounded-lg text-sm sm:text-base transition-all duration-300 hover:bg-unread active:scale-95 border-2 border-transparent;
       }
       /* 增强的选中状态样式 */
       .selected {
@@ -151,7 +147,7 @@
 
     // 全局变量
     let selectedStudentId = null;
-    let studentChoices = {}; // 存储当前学生的选择: 1=喜欢, 0=不喜欢, -1=没看过
+    let studentChoices = {}; // 存储当前学生的选择: 1=喜欢, 0=不喜欢
     let allStudentsData = {}; // 存储所有学生的数据
     let refreshInterval; // 用于存储刷新定时器
     
@@ -304,9 +300,6 @@
             <button class="dislike-btn btn-dislike ${studentChoices[book.id] === 0 ? 'selected' : ''}" data-book-id="${book.id}">
               <i class="fa fa-thumbs-down mr-1.5"></i>不喜欢
             </button>
-            <button class="unread-btn btn-unread ${studentChoices[book.id] === -1 ? 'selected' : ''}" data-book-id="${book.id}">
-              <i class="fa fa-question-circle mr-1.5"></i>没看过
-            </button>
           </div>
         `;
         
@@ -318,7 +311,6 @@
           studentChoices[bookId] = 1;
           e.currentTarget.classList.add('selected');
           bookCard.querySelector('.dislike-btn').classList.remove('selected');
-          bookCard.querySelector('.unread-btn').classList.remove('selected');
         });
         
         // 绑定不喜欢按钮事件
@@ -327,26 +319,16 @@
           studentChoices[bookId] = 0;
           e.currentTarget.classList.add('selected');
           bookCard.querySelector('.like-btn').classList.remove('selected');
-          bookCard.querySelector('.unread-btn').classList.remove('selected');
-        });
-        
-        // 绑定没看过按钮事件
-        bookCard.querySelector('.unread-btn').addEventListener('click', (e) => {
-          const bookId = parseInt(e.currentTarget.dataset.bookId);
-          studentChoices[bookId] = -1;
-          e.currentTarget.classList.add('selected');
-          bookCard.querySelector('.like-btn').classList.remove('selected');
-          bookCard.querySelector('.dislike-btn').classList.remove('selected');
         });
       });
     }
     
     // 前往结果展示区域
     async function goToResultsSection() {
-      // 验证是否所有书籍都已评价（包括没看过）
+      // 验证是否所有书籍都已评价
       const allRated = books.every(book => studentChoices[book.id] !== undefined);
       if (!allRated) {
-        alert('请为每一本书都选择喜欢、不喜欢或没看过哦！');
+        alert('请为每一本书都选择喜欢或不喜欢哦！');
         return;
       }
       
@@ -369,11 +351,20 @@
         document.getElementById('results-section').classList.remove('slide-next');
         document.getElementById('results-section').classList.add('slide-in');
         
+        // 滚动到页面顶部
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
         // 计算并显示相似学生
         await updateSimilarStudents();
         
-        // 设置定时刷新
-        refreshInterval = setInterval(updateSimilarStudents, 5000);
+        // 检查是否所有学生都已完成，如果是则停止刷新
+        const totalStudents = Object.keys(allStudentsData).length;
+        if (totalStudents >= 45) {
+          console.log('所有学生已完成填写，停止自动刷新');
+        } else {
+          // 设置定时刷新
+          refreshInterval = setInterval(updateSimilarStudents, 5000);
+        }
       }, 300);
     }
     
@@ -386,7 +377,10 @@
         
         // 获取其他学生数据
         const otherStudents = Object.keys(allStudentsData)
-          .filter(id => parseInt(id) !== selectedStudentId && allStudentsData[id])
+          .filter(id => {
+            const studentId = parseInt(id);
+            return !isNaN(studentId) && studentId !== selectedStudentId && allStudentsData[id];
+          })
           .map(id => ({ id: parseInt(id), choices: allStudentsData[id] }));
         
         console.log('其他学生数据:', otherStudents);
@@ -412,7 +406,7 @@
             const theirChoice = student.choices[book.id];
             
             // 只考虑双方都明确表示喜欢或不喜欢的书籍
-            if (myChoice !== -1 && theirChoice !== -1) {
+            if (myChoice !== undefined && theirChoice !== undefined) {
               bothReadCount++;
               if (myChoice === theirChoice) {
                 sameCount++;
